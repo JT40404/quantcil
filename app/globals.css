@@ -73,21 +73,21 @@ a { color: inherit; }
 /* Hero                                                                  */
 /* -------------------------------------------------------------------- */
 .hero {
-  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 16px;
-  align-items: end; padding: 28px var(--pad) 0;
+  display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 8px 24px;
+  align-items: center; padding: 12px var(--pad) 12px;
 }
 .kicker {
-  margin: 0 0 18px; font-family: var(--font-display), monospace; text-transform: uppercase;
-  font-size: 18px; line-height: 1.4; letter-spacing: 0.06em; color: var(--on-mauve);
+  margin: 0 0 14px; font-family: var(--font-display), monospace; text-transform: uppercase;
+  font-size: 16px; line-height: 1.4; letter-spacing: 0.06em; color: var(--on-mauve);
 }
 .cursor { color: var(--lime); animation: blink 1s steps(1) infinite; }
 .headline {
   margin: 0; font-family: var(--font-display), monospace; font-weight: 700; text-transform: uppercase;
-  font-size: clamp(46px, 6.6vw, 104px); line-height: 0.92; letter-spacing: 0.01em;
+  font-size: clamp(40px, 5vw, 84px); line-height: 0.92; letter-spacing: 0.01em;
   text-shadow: 0.06em 0.06em 0 var(--ink);
 }
-.lede { margin: 22px 0 0; max-width: 34ch; font-size: 24px; line-height: 1.2; color: var(--white); }
-.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 20px 28px; margin: 28px 0 32px; }
+.lede { margin: 18px 0 0; max-width: 36ch; font-size: 22px; line-height: 1.2; color: var(--white); }
+.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; margin: 22px 0 8px; }
 .btn {
   --ring: var(--ink);
   display: inline-flex; align-items: center; gap: 14px; text-decoration: none; cursor: pointer; border: 0;
@@ -102,7 +102,41 @@ a { color: inherit; }
 .stats dd { margin: 0; color: var(--white); }
 
 .hero-art { position: relative; min-width: 0; }
-.scene { display: block; width: 100%; height: auto; overflow: visible; }
+.scene-wrap { position: relative; }
+/* Fit the whole scene above the fold: cap its height to the viewport minus the top and live bars. */
+.scene { display: block; width: 100%; height: auto; max-height: calc(100svh - 190px); overflow: visible; }
+
+/* Speech bubbles */
+.speech {
+  position: absolute; z-index: 5; transform: translate(-50%, -100%); transform-origin: 50% 100%;
+  background: var(--white); color: var(--ink); padding: 10px 12px 12px;
+  box-shadow: 0 -4px 0 0 var(--ink), 0 4px 0 0 var(--ink), -4px 0 0 0 var(--ink), 4px 0 0 0 var(--ink), 8px 10px 0 0 rgba(20, 12, 22, 0.35);
+  animation: speech-pop 0.18s steps(3) 1;
+  pointer-events: none;
+}
+.speech.love { background: #f1ffd6; }
+.speech.hate { background: #ffe3da; }
+@keyframes speech-pop {
+  from { transform: translate(-50%, -100%) scale(0.6); }
+  to { transform: translate(-50%, -100%) scale(1); }
+}
+.speech-q { margin: 0; font-family: var(--font-body), monospace; font-size: 22px; line-height: 1.05; }
+.speech-q b { display: block; margin-bottom: 4px; font-family: var(--font-display), monospace; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; }
+.speech.love .speech-q b { color: #3f7d10; }
+.speech.hate .speech-q b { color: #c2441c; }
+.speech-r { margin: 8px 0 0; padding-top: 6px; border-top: 2px dashed rgba(20, 12, 22, 0.25); font-size: 16px; line-height: 1.1; color: #4b3a50; }
+.speech-r .chip { font-size: 10px; padding: 1px 5px; border-width: 2px; vertical-align: 1px; }
+.speech-r .chip.WATCH { color: #8a5d00; border-color: #8a5d00; }
+.speech-r .chip.AVOID { color: #c2441c; border-color: #c2441c; }
+.speech-tail {
+  position: absolute; bottom: -14px; width: 16px; height: 12px; transform: translateX(-50%); background: var(--ink);
+  clip-path: polygon(0 0, 100% 0, 100% 33%, 75% 33%, 75% 66%, 50% 66%, 50% 100%, 25% 100%, 25% 66%, 0 66%);
+}
+
+/* Talking: chatter instead of the idle loop, and the walker stops to talk */
+.member.talking [class^="idle"] { animation: chatter 0.26s steps(1) infinite; transform-origin: 50% 100%; }
+@keyframes chatter { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.05, 0.93); } }
+.walk.hold, .walk.hold .flip { animation-play-state: paused; }
 .pipeline {
   position: absolute; top: 8px; right: 8px; margin: 0; padding: 12px; list-style: none; background: var(--ink);
   font-family: var(--font-display), monospace; text-transform: uppercase; font-size: 17px; letter-spacing: 0.04em;
@@ -366,6 +400,9 @@ a { color: inherit; }
 }
 @media (max-width: 900px) {
   .hero { grid-template-columns: minmax(0, 1fr); }
+  .hero-art { order: -1; }
+  .scene { max-height: none; }
+  .speech { max-width: 92vw; }
   .pipeline { position: static; display: flex; flex-wrap: wrap; margin-top: 12px; min-width: 0; }
 }
 @media (max-width: 600px) {

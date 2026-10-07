@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactElement } from "react";
 import { Pixels } from "./Pixels";
 import { CHARACTERS, CLOUD, COIN, FLOWER, FLY, PALETTE, SPARKLE, UFO, artSize } from "@/lib/sprites";
 import { QUANTS } from "@/lib/quants";
 import type { QuantId, Signal } from "@/lib/types";
+import { quip, type Mood } from "@/lib/banter";
 
-export type Pick = { symbol: string; signal: Signal; score: number } | null;
+export type Take = { symbol: string; signal: Signal; score: number; reason: string | null };
+/** Each member's favourite (love) and least favourite (hate) coin right now. */
+export type Takes = Record<QuantId, { love: Take | null; hate: Take | null }>;
 
 const W = 240;
 const H = 180;
@@ -117,32 +120,83 @@ function Platform({ x, y, w, h, ladder }: { x: number; y: number; w: number; h: 
 
 /* The scene ----------------------------------------------------------------- */
 
-export function PixelScene({ picks }: { picks: Record<QuantId, Pick> }) {
-  const [talking, setTalking] = useState<QuantId | null>(null);
+type Speech = {
+  id: QuantId;
+  mood: Mood;
+  text: string;
+  take: Take;
+  left: number;
+  top: number;
+  width: number;
+  tail: number;
+  user: boolean;
+};
+
+export function PixelScene({ takes }: { takes: Takes }) {
+  const [speech, setSpeech] = useState<Speech | null>(null);
   const [jumping, setJumping] = useState<QuantId | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const memberRefs = useRef<Partial<Record<QuantId, SVGGElement | null>>>({});
+  const lastMood = useRef<Partial<Record<QuantId, Mood>>>({});
   const userActed = useRef(0);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const moon = useMemo(moonRects, []);
 
-  // Ambient chatter: every few seconds a random member calls out their top pick.
+  const speak = useCallback(
+    (id: QuantId, mood: Mood, user: boolean) => {
+      const take = takes[id]?.[mood] ?? takes[id]?.[mood === "love" ? "hate" : "love"];
+      const el = memberRefs.current[id];
+      const wrap = wrapRef.current;
+      if (!take || !el || !wrap) return;
+      const usedMood: Mood = takes[id]?.[mood] ? mood : mood === "love" ? "hate" : "love";
+
+      const w = wrap.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      const center = r.left + r.width / 2 - w.left;
+      const width = Math.min(300, Math.max(200, w.width * 0.42));
+      const left = Math.min(w.width - width / 2 - 4, Math.max(width / 2 + 4, center));
+      setSpeech({
+        id,
+        mood: usedMood,
+        text: quip(id, usedMood, take.symbol),
+        take,
+        left,
+        top: r.top - w.top - 8,
+        width,
+        tail: center - left,
+        user,
+      });
+      lastMood.current[id] = usedMood;
+      clearTimeout(hideTimer.current);
+      hideTimer.current = setTimeout(() => setSpeech(null), user ? 7000 : 4600);
+    },
+    [takes]
+  );
+
+  // Ambient banter: someone is always talking about something.
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let hide: ReturnType<typeof setTimeout>;
+    const first = setTimeout(() => speak("momo", "love", false), 1200);
     const id = setInterval(() => {
-      if (Date.now() - userActed.current < 8000 || document.hidden) return;
+      if (Date.now() - userActed.current < 9000 || document.hidden) return;
       const who = CAST[Math.floor(Math.random() * CAST.length)].id;
-      if (!picks[who]) return;
-      setTalking(who);
-      hide = setTimeout(() => setTalking((t) => (t === who ? null : t)), 2600);
-    }, 6500);
+      speak(who, Math.random() < 0.5 ? "love" : "hate", false);
+    }, 5200);
+    const hide = () => setSpeech(null);
+    window.addEventListener("resize", hide);
     return () => {
+      clearTimeout(first);
       clearInterval(id);
-      clearTimeout(hide);
+      clearTimeout(hideTimer.current);
+      window.removeEventListener("resize", hide);
     };
-  }, [picks]);
+  }, [speak]);
 
   function poke(id: QuantId) {
     userActed.current = Date.now();
-    setTalking(id);
+    // Alternate between hype and trash talk on each click.
+    const next: Mood = lastMood.current[id] === "love" ? "hate" : "love";
+    speak(id, next, true);
     setJumping(null);
     requestAnimationFrame(() => setJumping(id));
   }
@@ -155,155 +209,161 @@ export function PixelScene({ picks }: { picks: Record<QuantId, Pick> }) {
   }
 
   return (
-    <svg
-      className="scene"
-      viewBox={`0 0 ${W} ${H}`}
-      shapeRendering="crispEdges"
-      role="group"
-      aria-label="The council's hangout. Select a member to hear their top pick."
-    >
-      <Skyline />
+    <div className="scene-wrap" ref={wrapRef}>
+      <svg
+        className="scene"
+        viewBox={`0 0 ${W} ${H}`}
+        shapeRendering="crispEdges"
+        role="group"
+        aria-label="The council's hangout. Select a member to hear what they think."
+      >
+        <Skyline />
 
-      {/* Moon */}
-      <g transform="translate(184 34)" aria-hidden="true">
-        {moon.map((p, i) => (
-          <rect key={i} x={p.x * S} y={p.y * S} width={S} height={S} fill={p.c} />
-        ))}
-      </g>
+        {/* Moon */}
+        <g transform="translate(184 34)" aria-hidden="true">
+          {moon.map((p, i) => (
+            <rect key={i} x={p.x * S} y={p.y * S} width={S} height={S} fill={p.c} />
+          ))}
+        </g>
 
-      {/* Stars & sparkles */}
-      <g aria-hidden="true">
-        {[
-          [70, 10, 0], [150, 8, 1.2], [222, 50, 0.6], [128, 40, 2], [20, 70, 1.6], [236, 128, 0.3],
-        ].map(([x, y, d], i) => (
-          <g key={i} transform={`translate(${x} ${y})`}>
-            <g className="twinkle" style={{ animationDelay: `${d}s` }}>
-              <Pixels art={SPARKLE} scale={2} />
+        {/* Stars & sparkles */}
+        <g aria-hidden="true">
+          {[
+            [70, 10, 0], [150, 8, 1.2], [222, 50, 0.6], [128, 40, 2], [20, 70, 1.6], [236, 128, 0.3],
+          ].map(([x, y, d], i) => (
+            <g key={i} transform={`translate(${x} ${y})`}>
+              <g className="twinkle" style={{ animationDelay: `${d}s` }}>
+                <Pixels art={SPARKLE} scale={2} />
+              </g>
             </g>
+          ))}
+          {[
+            [140, 26], [96, 54], [210, 90],
+          ].map(([x, y], i) => (
+            <rect key={`g${i}`} x={x} y={y} width={4} height={4} fill={PALETTE.G} className="twinkle" style={{ animationDelay: `${i * 0.8}s` }} />
+          ))}
+        </g>
+
+        {/* Clouds */}
+        <g transform="translate(108 20)" aria-hidden="true"><g className="drift"><Pixels art={CLOUD} scale={2} /></g></g>
+        <g transform="translate(170 76)" aria-hidden="true"><g className="drift slow"><Pixels art={CLOUD} scale={2} /></g></g>
+        <g transform="translate(66 56)" aria-hidden="true"><g className="drift" style={{ animationDelay: "-6s" }}><Pixels art={CLOUD} scale={1} /></g></g>
+
+        {/* UFO with tractor beam */}
+        <g transform="translate(20 6)" aria-hidden="true">
+          <g className="ufo">
+            <g className="beam">
+              {[0, 1, 2, 3, 4, 5, 6].map((r) =>
+                [0, 1, 2].map((c) =>
+                  (r + c) % 2 === 0 ? (
+                    <rect key={`${r}-${c}`} x={12 + c * 4 + (r % 2) * 2} y={18 + r * 4} width={2} height={2} fill={r < 3 ? "#e3c9a0" : "#c9a0b6"} />
+                  ) : null
+                )
+              )}
+            </g>
+            <Pixels art={UFO} scale={2} />
           </g>
-        ))}
+        </g>
+
+        {/* Platforms */}
+        <Platform x={70} y={100} w={70} h={80} ladder />
+        <Platform x={146} y={118} w={70} h={62} />
+        <Platform x={36} y={150} w={74} h={30} />
+        <Platform x={150} y={158} w={90} h={22} />
+
+        {/* Flowers */}
         {[
-          [140, 26], [96, 54], [210, 90],
+          [74, 90], [134, 90], [150, 108], [208, 108], [40, 140], [100, 140], [156, 148], [232, 148],
         ].map(([x, y], i) => (
-          <rect key={`g${i}`} x={x} y={y} width={4} height={4} fill={PALETTE.G} className="twinkle" style={{ animationDelay: `${i * 0.8}s` }} />
+          <g key={i} transform={`translate(${x} ${y})`} aria-hidden="true"><Pixels art={FLOWER} scale={2} /></g>
         ))}
-      </g>
 
-      {/* Clouds */}
-      <g transform="translate(108 20)" aria-hidden="true"><g className="drift"><Pixels art={CLOUD} scale={2} /></g></g>
-      <g transform="translate(170 76)" aria-hidden="true"><g className="drift slow"><Pixels art={CLOUD} scale={2} /></g></g>
-      <g transform="translate(66 56)" aria-hidden="true"><g className="drift" style={{ animationDelay: "-6s" }}><Pixels art={CLOUD} scale={1} /></g></g>
-
-      {/* UFO with tractor beam */}
-      <g transform="translate(20 6)" aria-hidden="true">
-        <g className="ufo">
-          <g className="beam">
-            {[0, 1, 2, 3, 4, 5, 6].map((r) =>
-              [0, 1, 2].map((c) =>
-                (r + c) % 2 === 0 ? (
-                  <rect key={`${r}-${c}`} x={12 + c * 4 + (r % 2) * 2} y={18 + r * 4} width={2} height={2} fill={r < 3 ? "#e3c9a0" : "#c9a0b6"} />
-                ) : null
-              )
-            )}
-          </g>
-          <Pixels art={UFO} scale={2} />
-        </g>
-      </g>
-
-      {/* Platforms */}
-      <Platform x={70} y={100} w={70} h={80} ladder />
-      <Platform x={146} y={118} w={70} h={62} />
-      <Platform x={36} y={150} w={74} h={30} />
-      <Platform x={150} y={158} w={90} h={22} />
-
-      {/* Flowers */}
-      {[
-        [74, 90], [134, 90], [150, 108], [208, 108], [40, 140], [100, 140], [156, 148], [232, 148],
-      ].map(([x, y], i) => (
-        <g key={i} transform={`translate(${x} ${y})`} aria-hidden="true"><Pixels art={FLOWER} scale={2} /></g>
-      ))}
-
-      {/* Coins */}
-      {[
-        [24, 116, 0], [124, 62, 0.4], [216, 66, 0.9], [150, 96, 1.3],
-      ].map(([x, y, d], i) => (
-        <g key={i} transform={`translate(${x} ${y})`} aria-hidden="true">
-          <g className="coin-bob" style={{ animationDelay: `${d}s` }}>
-            <g className="coin-spin" style={{ animationDelay: `${d}s` }}>
-              <Pixels art={COIN} scale={2} />
-            </g>
-          </g>
-        </g>
-      ))}
-
-      {/* Flies */}
-      {[
-        [104, 66, 0], [200, 78, 1.1], [64, 92, 2.1],
-      ].map(([x, y, d], i) => (
-        <g key={i} transform={`translate(${x} ${y})`} aria-hidden="true">
-          <g className="buzz" style={{ animationDelay: `${-d}s` }}><Pixels art={FLY} scale={2} /></g>
-        </g>
-      ))}
-
-      {/* The council */}
-      {CAST.map((m) => {
-        const art = CHARACTERS[m.id];
-        const { w, h } = artSize(art);
-        const pw = w * S;
-        const pick = picks[m.id];
-        const q = QUANTS[m.id];
-        const bubbleW = 66;
-        // Keep the bubble inside the scene.
-        const bx = Math.min(W - bubbleW - 2 - m.x, Math.max(2 - m.x, pw / 2 - bubbleW / 2));
-        const label = pick
-          ? `${q.name}, ${q.role}. Top pick: ${pick.symbol}, ${pick.signal.toLowerCase()}, score ${pick.score}.`
-          : `${q.name}, ${q.role}. No pick yet.`;
-
-        const body = (
-          <g
-            className={`member${jumping === m.id ? " jump" : ""}`}
-            onAnimationEnd={(e) => e.animationName === "bigjump" && setJumping(null)}
-          >
-            <g className={m.walk ? "flip" : undefined}>
-              <g className={m.idle}>
-                <Pixels art={art} scale={S} />
+        {/* Coins */}
+        {[
+          [24, 116, 0], [124, 62, 0.4], [216, 66, 0.9], [150, 96, 1.3],
+        ].map(([x, y, d], i) => (
+          <g key={i} transform={`translate(${x} ${y})`} aria-hidden="true">
+            <g className="coin-bob" style={{ animationDelay: `${d}s` }}>
+              <g className="coin-spin" style={{ animationDelay: `${d}s` }}>
+                <Pixels art={COIN} scale={2} />
               </g>
             </g>
           </g>
-        );
+        ))}
 
-        return (
-          <g key={m.id} transform={`translate(${m.x} ${m.y})`}>
-            <g
-              className={m.walk ? "walk" : undefined}
-              role="button"
-              tabIndex={0}
-              aria-label={label}
-              onClick={() => poke(m.id)}
-              onKeyDown={(e) => onKey(e, m.id)}
-              onFocus={() => setTalking(m.id)}
-              onBlur={() => setTalking((t) => (t === m.id ? null : t))}
-              style={{ cursor: "pointer" }}
-            >
-              {/* bigger invisible hit area for small screens */}
-              <rect x={-4} y={-6} width={pw + 8} height={h * S + 8} fill="transparent" />
-              {body}
-              {talking === m.id && (
-                <g className="bubble" transform={`translate(${bx} -28)`} aria-hidden="true">
-                  <rect x={0} y={0} width={bubbleW} height={22} fill={PALETTE.K} />
-                  <rect x={2} y={2} width={bubbleW - 4} height={18} fill={PALETTE.W} />
-                  <rect x={pw / 2 - bx - 2} y={22} width={4} height={2} fill={PALETTE.K} />
-                  <rect x={pw / 2 - bx} y={24} width={2} height={2} fill={PALETTE.K} />
-                  <text x={6} y={10} className="bubble-t" fontSize={7} fontWeight={700} fontFamily="var(--font-display), monospace" fill={PALETTE.K}>{pick ? `$${pick.symbol}`.slice(0, 11) : "Hmm..."}</text>
-                  <text x={6} y={17.5} className={`bubble-s ${pick?.signal ?? ""}`} fontSize={6} fontFamily="var(--font-display), monospace">
-                    {pick ? `${pick.signal} ${pick.score}` : "no pick yet"}
-                  </text>
-                </g>
-              )}
-            </g>
+        {/* Flies */}
+        {[
+          [104, 66, 0], [200, 78, 1.1], [64, 92, 2.1],
+        ].map(([x, y, d], i) => (
+          <g key={i} transform={`translate(${x} ${y})`} aria-hidden="true">
+            <g className="buzz" style={{ animationDelay: `${-d}s` }}><Pixels art={FLY} scale={2} /></g>
           </g>
-        );
-      })}
-    </svg>
+        ))}
+
+        {/* The council */}
+        {CAST.map((m) => {
+          const art = CHARACTERS[m.id];
+          const { w, h } = artSize(art);
+          const pw = w * S;
+          const q = QUANTS[m.id];
+          const love = takes[m.id]?.love;
+          const hate = takes[m.id]?.hate;
+          const label =
+            `${q.name}, ${q.role}.` +
+            (love ? ` Loves ${love.symbol} (${love.signal.toLowerCase()}, ${love.score}).` : "") +
+            (hate ? ` Hates ${hate.symbol} (${hate.signal.toLowerCase()}, ${hate.score}).` : "");
+          const talking = speech?.id === m.id;
+
+          return (
+            <g key={m.id} transform={`translate(${m.x} ${m.y})`}>
+              <g
+                className={m.walk ? `walk${talking ? " hold" : ""}` : undefined}
+                role="button"
+                tabIndex={0}
+                aria-label={label}
+                onClick={() => poke(m.id)}
+                onKeyDown={(e) => onKey(e, m.id)}
+                style={{ cursor: "pointer" }}
+              >
+                <rect x={-4} y={-6} width={pw + 8} height={h * S + 8} fill="transparent" />
+                <g
+                  ref={(el) => {
+                    memberRefs.current[m.id] = el;
+                  }}
+                  className={`member${jumping === m.id ? " jump" : ""}${talking ? " talking" : ""}`}
+                  onAnimationEnd={(e) => e.animationName === "bigjump" && setJumping(null)}
+                >
+                  <g className={m.walk ? "flip" : undefined}>
+                    <g className={m.idle}>
+                      <Pixels art={art} scale={S} />
+                    </g>
+                  </g>
+                </g>
+              </g>
+            </g>
+          );
+        })}
+      </svg>
+
+      {speech && (
+        <div
+          key={`${speech.id}-${speech.text}`}
+          className={`speech ${speech.mood}`}
+          style={{ left: speech.left, top: speech.top, width: speech.width }}
+          role={speech.user ? "status" : undefined}
+          aria-hidden={speech.user ? undefined : true}
+        >
+          <p className="speech-q">
+            <b>{QUANTS[speech.id].name}:</b> {speech.text}
+          </p>
+          <p className="speech-r">
+            <span className={`chip ${speech.take.signal}`}>{speech.take.signal}</span>{" "}
+            ${speech.take.symbol} scored {speech.take.score}
+            {speech.take.reason ? ` / ${speech.take.reason}` : ""}
+          </p>
+          <span className="speech-tail" style={{ left: `calc(50% + ${speech.tail}px)` }} aria-hidden="true" />
+        </div>
+      )}
+    </div>
   );
 }

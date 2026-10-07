@@ -9,31 +9,31 @@ export const QUANTS: Record<
   { name: string; role: string; initials: string; thesis: string; tags: string[] }
 > = {
   momo: {
-    name: "Priya Raman",
+    name: "Gloop",
     role: "Momentum",
-    initials: "PR",
-    thesis: "Rides strength. Wants rising price, accelerating volume and buyers in control on the hourly.",
+    initials: "GL",
+    thesis: "A lime slime with too many teeth and zero patience. Chases rising price, speeding-up volume and buyers in control.",
     tags: ["price trend", "volume pace", "buy pressure"],
   },
   flow: {
-    name: "Marcus Hale",
+    name: "Hopsy",
     role: "Order flow",
-    initials: "MH",
-    thesis: "Follows the wallets. More unique buyers than sellers, healthy turnover, no signs of bot churn.",
+    initials: "HP",
+    thesis: "Pink, fluffy, counts every wallet. Wants more buyers than sellers, real turnover and no bots cycling.",
     tags: ["unique buyers", "turnover", "bot checks"],
   },
   risk: {
-    name: "Jun Takeda",
+    name: "Whiskers",
     role: "Rug risk",
-    initials: "JT",
-    thesis: "Runs the safety screen: authorities, liquidity, holder concentration, dev bags. Holds the veto.",
+    initials: "WH",
+    thesis: "A grumpy grey cat who sniffs every contract. Checks mint, freeze, liquidity, top holders and dev bags. Holds the veto.",
     tags: ["mint / freeze", "liquidity", "veto"],
   },
   fade: {
-    name: "Dani Okoro",
+    name: "Shades",
     role: "Contrarian",
-    initials: "DO",
-    thesis: "Fades what's already crowded, looks for quiet accumulation the timeline hasn't found yet.",
+    initials: "SH",
+    thesis: "A blue blob too cool to take off his sunglasses. Fades whatever's crowded, buys what nobody's noticed yet.",
     tags: ["crowding", "extension", "accumulation"],
   },
 };
@@ -252,9 +252,9 @@ export function convene(coin: CoinSnapshot): CouncilCall {
 
 function strongest(votes: QuantVote[]) {
   const v = [...votes].sort((a, b) => b.score - a.score)[0];
-  return v.reasons[0] ? `${QUANTS[v.quant].name.split(" ")[0]}: ${v.reasons[0]}` : "";
+  return v.reasons[0] ? `${QUANTS[v.quant].name}: ${v.reasons[0]}` : "";
 }
 function weakest(votes: QuantVote[]) {
   const v = [...votes].sort((a, b) => a.score - b.score)[0];
-  return v.reasons[0] ? `${QUANTS[v.quant].name.split(" ")[0]}: ${v.reasons[0]}` : "";
+  return v.reasons[0] ? `${QUANTS[v.quant].name}: ${v.reasons[0]}` : "";
 }

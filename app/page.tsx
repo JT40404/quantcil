@@ -3,7 +3,7 @@ import { cg } from "@/lib/coingecko";
 import { QUANT_ORDER } from "@/lib/quants";
 import { change, price, usd } from "@/lib/format";
 import type { CouncilCall, QuantId } from "@/lib/types";
-import { PixelScene, type Pick } from "@/components/PixelScene";
+import { PixelScene, type Take, type Takes } from "@/components/PixelScene";
 import { QuantCard } from "@/components/QuantCard";
 import { LiveBar } from "@/components/LiveBar";
 import { CallsBoard } from "@/components/CallsBoard";
@@ -53,13 +53,21 @@ export default async function Home() {
     })
   ) as Record<QuantId, CouncilCall | undefined>;
 
-  const picks = Object.fromEntries(
+  // What each member loves (their top score) and hates (their bottom score) right now.
+  const take = (c: CouncilCall | undefined, q: QuantId): Take | null => {
+    const v = c?.votes.find((x) => x.quant === q);
+    return c && v ? { symbol: c.coin.symbol, signal: v.signal, score: v.score, reason: v.reasons[0] ?? null } : null;
+  };
+  const takes = Object.fromEntries(
     QUANT_ORDER.map((q) => {
-      const c = best[q];
-      const v = c?.votes.find((x) => x.quant === q);
-      return [q, c && v ? { symbol: c.coin.symbol, signal: v.signal, score: v.score } : null];
+      const sorted = [...calls].sort(
+        (a, b) => a.votes.find((v) => v.quant === q)!.score - b.votes.find((v) => v.quant === q)!.score
+      );
+      const hate = sorted[0];
+      const love = sorted[sorted.length - 1];
+      return [q, { love: take(love, q), hate: sorted.length > 1 ? take(hate, q) : null }];
     })
-  ) as Record<QuantId, Pick>;
+  ) as Takes;
 
   return (
     <>
@@ -99,9 +107,8 @@ export default async function Home() {
               </dl>
             </div>
           </div>
-
           <div className="hero-art">
-            <PixelScene picks={picks} />
+            <PixelScene takes={takes} />
             <ol className="pipeline" aria-label="How a call gets made">
               {PIPELINE.map((p, i) => (
                 <li key={p.k} title={p.d} style={{ animationDelay: `${i * 1.2}s` }}>
