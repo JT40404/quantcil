@@ -39,29 +39,25 @@ export function AskCouncil() {
   }
 
   return (
-    <div className="ask">
-      <div>
-        <div className="kicker">Ask the council</div>
-        <h2 className="title">Got a coin in mind?</h2>
-        <p className="lede" style={{ marginTop: 10 }}>
-          Paste a token address for an exact match, or try a ticker. All four quants will score it on the spot.
-        </p>
-      </div>
+    <>
+      <h2 className="h">Ask the council</h2>
+      <p className="main-text" style={{ marginBottom: 28 }}>
+        Bring a coin. Paste its token address for an exact match, or try a ticker. All four quants vote on the spot.
+      </p>
 
-      <form onSubmit={onSubmit}>
+      <form className="form" onSubmit={onSubmit}>
         <div className="field">
           <label htmlFor="ask-q">Ticker, name or token address</label>
           <input
             id="ask-q"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="e.g. BONK or DezX…B263"
             autoComplete="off"
             spellCheck={false}
           />
         </div>
-        <button className="btn btn-primary" type="submit" disabled={loading}>
-          {loading ? "Council is voting…" : "Get the council's call"}
+        <button className="submit" type="submit" disabled={loading}>
+          {loading ? "voting…" : "ask"}
         </button>
       </form>
 
@@ -70,48 +66,49 @@ export function AskCouncil() {
       <div aria-live="polite">
         {result?.kind === "not_found" && (
           <div className="notice">
-            No Solana pools found for &ldquo;{result.query}&rdquo;. Check the spelling, or paste the token&apos;s address.
+            No Solana pools found for &ldquo;{result.query}&rdquo;. Check the spelling, or paste the token address.
           </div>
         )}
 
         {result?.kind === "ambiguous" && (
-          <div style={{ display: "grid", gap: 12 }}>
+          <>
             <div className="notice">
-              Several coins use &ldquo;{result.query}&rdquo;. Copycats are common — pick the one you mean. The real one usually
+              Several coins use &ldquo;{result.query}&rdquo;. Copycats are common. Pick the one you mean — the real one usually
               has the most liquidity.
             </div>
-            <div className="candidates">
+            <ul className="cands">
               {result.candidates.map((c) => (
-                <button key={c.address} type="button" className="candidate" onClick={() => run(c.address)}>
-                  {c.imageUrl ? <img className="coin-img" src={c.imageUrl} alt="" /> : <span className="coin-img" />}
-                  <span className="grow">
-                    <span className="coin-sym">${c.symbol}</span> <span className="coin-name">{c.name}</span>
-                    <br />
-                    <span className="addr">{shortAddr(c.address)}</span>
-                  </span>
-                  <span className="mono" style={{ fontSize: 13, color: "var(--text-2)", textAlign: "right" }}>
-                    {usd(c.liquidityUsd)} liq
-                    <br />
-                    {usd(c.volume24hUsd)} vol
-                  </span>
-                </button>
+                <li key={c.address}>
+                  <button type="button" className="cand" onClick={() => run(c.address)}>
+                    {c.imageUrl ? <img className="thumb" src={c.imageUrl} alt="" /> : <span className="thumb" />}
+                    <span>
+                      <span className="t-title">{c.symbol}</span>
+                      <span className="t-name">{c.name} / {shortAddr(c.address)}</span>
+                    </span>
+                    <span className="t-nums">
+                      {usd(c.liquidityUsd)} liq
+                      <br />
+                      {usd(c.volume24hUsd)} vol
+                    </span>
+                  </button>
+                </li>
               ))}
-            </div>
-          </div>
+            </ul>
+          </>
         )}
 
         {result?.kind === "call" && (
           <div className="result">
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "20px 24px 0" }}>
+            <div className="result-head">
               {result.call.coin.imageUrl ? (
-                <img className="coin-img" src={result.call.coin.imageUrl} alt="" />
+                <img className="thumb" src={result.call.coin.imageUrl} alt="" />
               ) : (
-                <span className="coin-img" />
+                <span className="thumb" />
               )}
-              <div>
-                <div className="coin-sym" style={{ fontSize: 20 }}>${result.call.coin.symbol}</div>
-                <div className="coin-name">{result.call.coin.name}</div>
-              </div>
+              <span>
+                <span className="t-title">{result.call.coin.symbol}</span>
+                <span className="t-name">{result.call.coin.name}</span>
+              </span>
               <span style={{ marginLeft: "auto" }}>
                 <SignalChip signal={result.call.verdict} big />
               </span>
@@ -120,6 +117,6 @@ export function AskCouncil() {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

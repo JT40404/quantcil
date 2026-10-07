@@ -1,19 +1,14 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import type { CouncilCall, Signal } from "@/lib/types";
-import { QUANT_ORDER } from "@/lib/quants";
 import { change, price, usd } from "@/lib/format";
 import { SignalChip } from "./SignalChip";
 import { CallDetail } from "./CallDetail";
+import { VoteCodes } from "./VoteCodes";
 
 type Filter = "ALL" | Signal;
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: "ALL", label: "All" },
-  { key: "BUY", label: "Buy" },
-  { key: "WATCH", label: "Watch" },
-  { key: "AVOID", label: "Avoid" },
-];
+const FILTERS: Filter[] = ["ALL", "BUY", "WATCH", "AVOID"];
 
 export function CallsBoard({ calls }: { calls: CouncilCall[] }) {
   const [filter, setFilter] = useState<Filter>("ALL");
@@ -22,105 +17,55 @@ export function CallsBoard({ calls }: { calls: CouncilCall[] }) {
 
   return (
     <>
-      <div className="section-head">
-        <div>
-          <div className="kicker">Calls board</div>
-          <h2 className="title">What the council found</h2>
-        </div>
+      <div className="calls-head">
+        <h2 className="h" style={{ marginBottom: 0 }}>Calls</h2>
         <div className="filters" role="group" aria-label="Filter by verdict">
           {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              className="filter"
-              aria-pressed={filter === f.key}
-              onClick={() => setFilter(f.key)}
-            >
-              {f.label}
-              {f.key !== "ALL" && ` (${calls.filter((c) => c.verdict === f.key).length})`}
+            <button key={f} type="button" className="filter" aria-pressed={filter === f} onClick={() => setFilter(f)}>
+              {f === "ALL" ? "all" : `${f.toLowerCase()} (${calls.filter((c) => c.verdict === f).length})`}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="board">
-        {shown.length === 0 ? (
-          <div className="empty">No {filter.toLowerCase()} calls right now. Try another filter.</div>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Coin</th>
-                <th scope="col">Price</th>
-                <th scope="col">1h</th>
-                <th scope="col">24h</th>
-                <th scope="col">Liquidity</th>
-                <th scope="col">Momentum</th>
-                <th scope="col">Flow</th>
-                <th scope="col">Risk</th>
-                <th scope="col">Contrarian</th>
-                <th scope="col">Council</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((call) => {
-                const c = call.coin;
-                const isOpen = open === c.address;
-                const h1 = change(c.priceChange.h1);
-                const h24 = change(c.priceChange.h24);
-                return (
-                  <Fragment key={c.address}>
-                    <tr>
-                      <td>
-                        <button
-                          type="button"
-                          className="coin-btn"
-                          aria-expanded={isOpen}
-                          onClick={() => setOpen(isOpen ? null : c.address)}
-                        >
-                          {c.imageUrl ? <img src={c.imageUrl} alt="" /> : <span className="coin-img" />}
-                          <span>
-                            <span className="coin-sym">${c.symbol}</span>
-                            <br />
-                            <span className="coin-name">{isOpen ? "Hide reasoning" : "See reasoning"}</span>
-                          </span>
-                        </button>
-                      </td>
-                      <td className="num">{price(c.priceUsd)}</td>
-                      <td className={`num ${h1.cls}`}>{h1.text}</td>
-                      <td className={`num ${h24.cls}`}>{h24.text}</td>
-                      <td className="num">{usd(c.liquidityUsd)}</td>
-                      {QUANT_ORDER.map((q) => (
-                        <td key={q}>
-                          <SignalChip signal={call.votes.find((v) => v.quant === q)!.signal} />
-                        </td>
-                      ))}
-                      <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <SignalChip signal={call.verdict} big />
-                          <span className="mono" style={{ fontSize: 13, color: "var(--muted)" }}>
-                            {call.vetoed ? "vetoed" : `${call.buyCount}/4 buy`}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                    {isOpen && (
-                      <tr className="detail-row">
-                        <td colSpan={10}>
-                          <CallDetail call={call} />
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {shown.length === 0 ? (
+        <div className="empty">No {filter.toLowerCase()} calls right now. Try another filter.</div>
+      ) : (
+        <ul className="tracks">
+          {shown.map((call) => {
+            const c = call.coin;
+            const isOpen = open === c.address;
+            const d24 = change(c.priceChange.h24);
+            return (
+              <li key={c.address} className="track" data-open={isOpen}>
+                <button
+                  type="button"
+                  className="track-btn"
+                  aria-expanded={isOpen}
+                  onClick={() => setOpen(isOpen ? null : c.address)}
+                >
+                  {c.imageUrl ? <img className="thumb" src={c.imageUrl} alt="" /> : <span className="thumb" />}
+                  <span>
+                    <span className="t-title">{c.symbol}</span>
+                    <span className="t-name">{c.name}</span>
+                  </span>
+                  <VoteCodes call={call} />
+                  <SignalChip signal={call.verdict} big />
+                  <span className="t-nums">
+                    <b>{price(c.priceUsd)}</b> <span className={d24.cls}>{d24.text}</span>
+                    <br />
+                    {usd(c.liquidityUsd)} liq
+                  </span>
+                </button>
+                {isOpen && <CallDetail call={call} />}
+              </li>
+            );
+          })}
+        </ul>
+      )}
       <p className="footnote">
-        Coins come from Solana&apos;s trending pools on GeckoTerminal, refreshed every couple of minutes. A coin needs 3 of 4
-        buy votes to be a council Buy, and any Avoid from the risk screen vetoes it.
+        Pulled from Solana&apos;s trending pools and refreshed every couple of minutes. Three buy votes make a council buy.
+        An avoid from the risk screen vetoes it. Tap a coin for the reasoning.
       </p>
     </>
   );

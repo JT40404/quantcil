@@ -3,12 +3,17 @@ import { cg } from "@/lib/coingecko";
 import { QUANTS, QUANT_ORDER } from "@/lib/quants";
 import { change, price } from "@/lib/format";
 import type { CouncilCall } from "@/lib/types";
+import { Nav } from "@/components/Nav";
+import { Clock } from "@/components/Clock";
+import { AsciiTape } from "@/components/AsciiTape";
 import { CallsBoard } from "@/components/CallsBoard";
 import { AskCouncil } from "@/components/AskCouncil";
 import { SignalChip } from "@/components/SignalChip";
 
 // Re-run discovery at most every 2 minutes (ISR).
 export const revalidate = 120;
+
+const CODES: Record<string, string> = { momo: "m", flow: "f", risk: "r", fade: "c" };
 
 async function solPrice() {
   try {
@@ -32,6 +37,7 @@ export default async function Home() {
 
   const count = (s: string) => calls.filter((c) => c.verdict === s).length;
   const passed = calls.filter((c) => !c.vetoed).length;
+  const solCh = change(sol?.ch);
 
   // Each quant's favourite coin right now: their highest-scoring vote.
   const topPicks = Object.fromEntries(
@@ -43,161 +49,130 @@ export default async function Home() {
     })
   );
 
-  const solCh = change(sol?.ch);
-
   return (
     <>
-      <header className="nav">
-        <div className="wrap">
-          <a href="#top" className="brand">
-            <span className="mark" aria-hidden="true"><span /><span /><span /><span /></span>
-            THE QUANTCIL
-          </a>
-          <nav aria-label="Main">
-            <a href="#calls">Today&apos;s calls</a>
-            <a href="#ask">Ask the council</a>
-            <a href="#members">The quants</a>
-            <a href="#method">Method</a>
-          </nav>
-          <a href="#ask" className="btn btn-primary">Ask about a coin</a>
-        </div>
-      </header>
+      <Nav />
 
       <main id="top">
-        <div className="wrap">
-          <section className="hero">
-            <div className="hero-copy">
-              <div className="kicker">Solana meme coins, scored live</div>
-              <h1>Four quants.<br />One council.<br />Today&apos;s calls.</h1>
-              <p>
-                The Quantcil scans Solana&apos;s trending pools, screens out rugs, and lets four models vote on what&apos;s
-                left. Bring your own coin and they&apos;ll vote on that too.
-              </p>
-              <div className="actions">
-                <a href="#calls" className="btn btn-primary">See today&apos;s calls</a>
-                <a href="#ask" className="btn btn-ghost">Ask about a coin</a>
-              </div>
-            </div>
-            <aside className="status" aria-label="Council status">
-              <div className="status-row"><span>Updated</span><span>{updated} ET</span></div>
-              <div className="status-row">
-                <span>SOL</span>
-                <span>{price(sol?.usd)} <span className={solCh.cls}>{solCh.text}</span></span>
-              </div>
-              <div className="status-row"><span>Coins scanned</span><span>{calls.length}</span></div>
-              <div className="status-row"><span>Passed rug screen</span><span>{passed}</span></div>
-              <hr />
-              <div className="status-row">
-                <span>Council calls</span>
-                <span style={{ color: "var(--accent)", fontWeight: 600 }}>
-                  {count("BUY")} buy / {count("WATCH")} watch / {count("AVOID")} avoid
-                </span>
-              </div>
-            </aside>
+        {/* Intro row */}
+        <div className="grid">
+          <section className="cell span-2">
+            <h1 className="h xl">Four quants.<br />One council.</h1>
+            <p className="main-text">
+              The Quantcil scans Solana&apos;s trending meme coins, screens out rugs, and lets four models vote on
+              what&apos;s left. Every call shows its reasoning. Bring your own coin and they&apos;ll vote on that too.
+            </p>
+          </section>
+
+          <section className="cell" aria-labelledby="members-h">
+            <h2 id="members-h" className="h">Members</h2>
+            <ul className="legend">
+              {QUANT_ORDER.map((id) => (
+                <li key={id}>
+                  <b>({CODES[id]})</b> - {QUANTS[id].role}
+                </li>
+              ))}
+              <li><b>(v)</b> - risk holds the veto</li>
+            </ul>
+          </section>
+
+          <section className="cell tape-cell" aria-label="Decorative price tape">
+            <AsciiTape bias={sol?.ch ?? 0} />
           </section>
         </div>
 
-        <div className="risk-strip">
-          <div className="wrap">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F5B544" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: "none" }}>
-              <path d="M12 3 2 21h20L12 3z" /><path d="M12 10v5" /><path d="M12 18h.01" />
-            </svg>
-            <span>
-              These calls come from automated models, not people, and are not financial advice. Meme coins can go to zero
-              in minutes. Never trade more than you can afford to lose.
-            </span>
+        {/* Warning */}
+        <div className="grid">
+          <div className="cell span-4">
+            <p className="warning" style={{ margin: 0 }}>
+              <b>(!)</b>
+              <span>
+                Automated opinions, not financial advice. Meme coins can go to zero in minutes. Never trade more than you
+                can afford to lose.
+              </span>
+            </p>
           </div>
         </div>
 
-        <div className="wrap">
-          <section id="calls" className="block">
+        {/* Calls */}
+        <div className="grid">
+          <section id="calls" className="cell span-4">
             {loadError ? (
-              <div className="notice error" role="alert">
-                The council couldn&apos;t load market data: {loadError}. Check that COINGECKO_API_KEY is set, then refresh.
-              </div>
+              <>
+                <h2 className="h">Calls</h2>
+                <div className="notice error" role="alert">
+                  Couldn&apos;t load market data: {loadError}. Check that COINGECKO_API_KEY is set, then refresh.
+                </div>
+              </>
             ) : (
               <CallsBoard calls={calls} />
             )}
           </section>
+        </div>
 
-          <section id="ask" className="block">
+        {/* Ask / status / method */}
+        <div className="grid">
+          <section id="ask" className="cell span-2">
             <AskCouncil />
           </section>
 
-          <section id="members" className="block">
-            <div className="section-head">
-              <div>
-                <div className="kicker">The quants</div>
-                <h2 className="title">Four lenses on every coin</h2>
+          <section className="cell" aria-labelledby="status-h">
+            <h2 id="status-h" className="h">Council status</h2>
+            <div className="rows">
+              <div className="row"><span>Updated</span><span>{updated} ET</span></div>
+              <div className="row">
+                <span>SOL</span>
+                <span>{price(sol?.usd)} <span className={solCh.cls}>{solCh.text}</span></span>
               </div>
-              <p className="lede" style={{ maxWidth: 420 }}>
-                Each quant runs one model and votes independently. They&apos;re built to disagree.
-              </p>
-            </div>
-            <div className="quants">
-              {QUANT_ORDER.map((id) => {
-                const q = QUANTS[id];
-                const pick = topPicks[id];
-                return (
-                  <article className="quant" key={id}>
-                    <div className="quant-head">
-                      <div className="avatar" aria-hidden="true">{q.initials}</div>
-                      <div>
-                        <h3>{q.name}</h3>
-                        <div className="role">{q.role}</div>
-                      </div>
-                    </div>
-                    <p>{q.thesis}</p>
-                    <div className="tags">{q.tags.map((t) => <span key={t}>{t}</span>)}</div>
-                    <div className="quant-foot">
-                      <div>
-                        <small>Highest score today</small>
-                        <strong>{pick ? `$${pick.c.coin.symbol}` : "—"}</strong>
-                      </div>
-                      {pick && <SignalChip signal={pick.v.signal} big />}
-                    </div>
-                  </article>
-                );
-              })}
+              <div className="row"><span>Scanned</span><span>{calls.length}</span></div>
+              <div className="row"><span>Passed screen</span><span>{passed}</span></div>
+              <div className="row"><span>Buy</span><span>{count("BUY")}</span></div>
+              <div className="row"><span>Watch</span><span>{count("WATCH")}</span></div>
+              <div className="row"><span>Avoid</span><span>{count("AVOID")}</span></div>
             </div>
           </section>
 
-          <section id="method" className="block">
-            <div className="kicker">Method</div>
-            <h2 className="title" style={{ marginBottom: 32 }}>How a call gets made</h2>
-            <div className="steps">
-              <div className="step">
-                <div className="n">1</div>
-                <h3>Scan</h3>
-                <p>Pull Solana&apos;s trending pools over the last hour and day, skipping stablecoins and big non-meme tokens.</p>
-              </div>
-              <div className="step">
-                <div className="n">2</div>
-                <h3>Rug screen</h3>
-                <p>Mint and freeze authority, liquidity, top-holder share, dev wallet size, bonding-curve status. Fail one and it&apos;s out.</p>
-              </div>
-              <div className="step">
-                <div className="n">3</div>
-                <h3>Four votes</h3>
-                <p>Momentum, order flow, risk and contrarian models each score the coin 0–100 and vote Buy, Watch or Avoid.</p>
-              </div>
-              <div className="step">
-                <div className="n">4</div>
-                <h3>Council call</h3>
-                <p>Three Buy votes make a council Buy. A risk Avoid vetoes. Anything split is published as Watch.</p>
-              </div>
-            </div>
+          <section id="method" className="cell" aria-labelledby="method-h">
+            <h2 id="method-h" className="h">Method</h2>
+            <ol className="steps">
+              <li><sup>01</sup><div><b>Scan</b><span>Trending Solana pools, last hour and day. Stables and majors skipped.</span></div></li>
+              <li><sup>02</sup><div><b>Screen</b><span>Mint and freeze authority, liquidity, top holders, dev bags, bonding curve.</span></div></li>
+              <li><sup>03</sup><div><b>Vote</b><span>Each quant scores 0–100 and votes buy, watch or avoid.</span></div></li>
+              <li><sup>04</sup><div><b>Call</b><span>Three buys make a buy. A risk avoid vetoes. Splits are watch.</span></div></li>
+            </ol>
           </section>
+        </div>
+
+        {/* The quants */}
+        <div className="grid" id="members">
+          {QUANT_ORDER.map((id) => {
+            const q = QUANTS[id];
+            const pick = topPicks[id];
+            return (
+              <article className="cell" key={id}>
+                <div className="initials">({CODES[id]}) {q.role}</div>
+                <h3 className="h">{q.name}</h3>
+                <p className="quant-thesis">{q.thesis}</p>
+                <div className="pick">
+                  <div>
+                    <small>Highest score today</small>
+                    <strong>{pick ? pick.c.coin.symbol : "—"}</strong>
+                  </div>
+                  {pick && <SignalChip signal={pick.v.signal} />}
+                </div>
+              </article>
+            );
+          })}
         </div>
       </main>
 
-      <footer>
-        <div className="wrap">
-          <p>
-            The Quantcil publishes automated opinions for entertainment and education only. Nothing here is financial,
-            investment or tax advice, or a recommendation to buy or sell any asset. Meme coins are extremely volatile and
-            frequently lose all value. Market data from CoinGecko and GeckoTerminal. Do your own research.
-          </p>
+      {/* Footer */}
+      <footer className="grid">
+        <div className="cell foot">All rights reserved ({new Date().getFullYear()})</div>
+        <div className="cell foot"><Clock /></div>
+        <div className="cell span-2 foot">
+          Automated opinions for entertainment and education only — not financial, investment or tax advice. Meme coins
+          are extremely volatile and often lose all value. Data from CoinGecko and GeckoTerminal.
         </div>
       </footer>
     </>

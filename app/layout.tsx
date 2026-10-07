@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Oswald, Inconsolata, PT_Sans } from "next/font/google";
 import "./globals.css";
 
-const display = Space_Grotesk({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-display" });
-const mono = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "600"], variable: "--font-mono" });
+const display = Oswald({ subsets: ["latin"], weight: ["300", "400", "500", "600"], variable: "--font-display" });
+const mono = Inconsolata({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-mono" });
+const body = PT_Sans({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-body" });
 
 export const metadata: Metadata = {
   title: "The Quantcil — Solana meme coin calls",
@@ -13,8 +14,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${mono.variable}`}>
-      <body>{children}</body>
+    <html lang="en" className={`${display.variable} ${mono.variable} ${body.variable}`}>
+      <body>
+        <div className="curtain" aria-hidden="true">
+          <span>LOADING</span>
+        </div>
+        {children}
+      </body>
     </html>
   );
 }
