@@ -57,7 +57,7 @@ export function AskCouncil() {
           />
         </div>
         <button className="submit" type="submit" disabled={loading}>
-          {loading ? "voting…" : "ask"}
+          {loading ? "Voting..." : "Ask the council >"}
         </button>
       </form>
 

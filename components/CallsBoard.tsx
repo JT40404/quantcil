@@ -18,7 +18,7 @@ export function CallsBoard({ calls }: { calls: CouncilCall[] }) {
   return (
     <>
       <div className="calls-head">
-        <h2 className="h" style={{ marginBottom: 0 }}>Calls</h2>
+        <h2 className="h" style={{ marginBottom: 0 }}>Today&apos;s calls</h2>
         <div className="filters" role="group" aria-label="Filter by verdict">
           {FILTERS.map((f) => (
             <button key={f} type="button" className="filter" aria-pressed={filter === f} onClick={() => setFilter(f)}>
